@@ -1,0 +1,175 @@
+<!-- templates/admin/statistics.html -->
+{% extends 'base.html' %}
+{% block title %}Statistics – FoodBridge Admin{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="dashboard-header mb-5">
+    <div>
+      <h2 class="dashboard-title">📊 Platform Statistics</h2>
+      <p class="text-muted">Comprehensive analytics and insights</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-accent">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+
+  <div class="row g-4 mb-5">
+    <!-- Food Type Chart -->
+    <div class="col-lg-5">
+      <div class="card fb-card h-100">
+        <div class="card-header"><h5 class="mb-0"><i class="bi bi-pie-chart text-accent me-2"></i>By Food Type</h5></div>
+        <div class="card-body d-flex align-items-center justify-content-center">
+          <canvas id="typeChart" style="max-height:260px"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Chart -->
+    <div class="col-lg-7">
+      <div class="card fb-card h-100">
+        <div class="card-header"><h5 class="mb-0"><i class="bi bi-bar-chart text-accent me-2"></i>By Status</h5></div>
+        <div class="card-body">
+          <canvas id="statusChart" style="max-height:260px"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Top Donors -->
+    <div class="col-lg-6">
+      <div class="card fb-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-trophy text-warning me-2"></i>Top Donors</h5>
+        </div>
+        <div class="card-body p-0">
+          <table class="table fb-table mb-0">
+            <thead>
+              <tr><th>Donor</th><th>Donations</th><th>Meals</th></tr>
+            </thead>
+            <tbody>
+              {% for d in top_donors %}
+              <tr>
+                <td>
+                  <strong>{{ d.organization_name or d.name }}</strong>
+                  {% if d.organization_name %}
+                  <div class="text-muted small">{{ d.name }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="fw-bold text-accent">{{ d.donations }}</span>
+                </td>
+                <td>
+                  <span class="fw-bold">{{ d.meals }}</span>
+                  <div class="progress mt-1" style="height:4px">
+                    <div class="progress-bar bg-success" style="width:{{ [(d.meals / (top_donors[0].meals or 1) * 100)|int, 100]|min }}%"></div>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted py-3">No data</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top NGOs -->
+    <div class="col-lg-6">
+      <div class="card fb-card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-heart text-danger me-2"></i>Top NGOs</h5>
+        </div>
+        <div class="card-body p-0">
+          <table class="table fb-table mb-0">
+            <thead>
+              <tr><th>NGO</th><th>Pickups</th><th>People Fed</th></tr>
+            </thead>
+            <tbody>
+              {% for n in top_ngos %}
+              <tr>
+                <td>
+                  <strong>{{ n.organization_name or n.name }}</strong>
+                  {% if n.organization_name %}
+                  <div class="text-muted small">{{ n.name }}</div>
+                  {% endif %}
+                </td>
+                <td><span class="fw-bold text-accent">{{ n.pickups }}</span></td>
+                <td>
+                  <span class="fw-bold text-success">{{ n.people_fed }}</span>
+                  <div class="progress mt-1" style="height:4px">
+                    <div class="progress-bar bg-success" style="width:{{ [(n.people_fed / (top_ngos[0].people_fed or 1) * 100)|int, 100]|min if top_ngos else 0 }}%"></div>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted py-3">No data</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const typeData = {{ by_food_type | tojson }};
+const statusData = {{ by_status | tojson }};
+
+// Doughnut: by food type
+new Chart(document.getElementById('typeChart'), {
+  type: 'doughnut',
+  data: {
+    labels: typeData.map(t => t.food_type.toUpperCase()),
+    datasets: [{
+      data: typeData.map(t => t.cnt),
+      backgroundColor: ['#27ae60', '#e74c3c', '#f1c40f'],
+      borderWidth: 0,
+      hoverOffset: 6
+    }]
+  },
+  options: {
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.parsed} donations (${ctx.raw} servings)`
+        }
+      }
+    },
+    cutout: '65%'
+  }
+});
+
+// Bar: by status
+const statusColors = {
+  available: '#27ae60', accepted: '#2980b9', collected: '#e67e22',
+  completed: '#8e44ad', expired: '#e74c3c', removed: '#95a5a6'
+};
+new Chart(document.getElementById('statusChart'), {
+  type: 'bar',
+  data: {
+    labels: statusData.map(s => s.status.charAt(0).toUpperCase() + s.status.slice(1)),
+    datasets: [{
+      label: 'Donations by Status',
+      data: statusData.map(s => s.cnt),
+      backgroundColor: statusData.map(s => statusColors[s.status] || '#ccc'),
+      borderRadius: 8
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }
+    }
+  }
+});
+</script>
+{% endblock %}

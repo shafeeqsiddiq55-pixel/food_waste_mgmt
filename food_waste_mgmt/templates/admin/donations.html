@@ -1,0 +1,106 @@
+<!-- templates/admin/donations.html -->
+{% extends 'base.html' %}
+{% block title %}All Donations – FoodBridge Admin{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="dashboard-header mb-4">
+    <div>
+      <h2 class="dashboard-title">📦 All Donations</h2>
+      <p class="text-muted">{{ donations | length }} records</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-accent">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+
+  <!-- Status Filter Tabs -->
+  <div class="d-flex gap-2 flex-wrap mb-4">
+    {% for s in ['', 'available', 'accepted', 'collected', 'completed', 'expired', 'removed'] %}
+    <a href="{{ url_for('admin.all_donations', status=s) }}"
+       class="btn btn-sm {{ 'btn-accent' if status_filter == s else 'btn-outline-secondary' }}">
+      {{ s | capitalize or 'All' }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Live Search -->
+  <div class="mb-3">
+    <input type="text" id="liveSearch" class="form-control fb-input" style="max-width:400px"
+           placeholder="🔍  Search donor, food name, location..."/>
+  </div>
+
+  <div class="card fb-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table fb-table mb-0">
+          <thead>
+            <tr><th>#</th><th>Donor</th><th>Food</th><th>Type</th><th>Qty</th>
+                <th>Expires</th><th>Status</th><th>NGO</th><th>Posted</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for d in donations %}
+            <tr>
+              <td class="text-muted">{{ loop.index }}</td>
+              <td>
+                <strong>{{ d.donor_org or d.donor_name }}</strong>
+                <div class="text-muted small">{{ d.address | truncate(30) if d.address else '' }}</div>
+              </td>
+              <td><strong>{{ d.food_name }}</strong></td>
+              <td><span class="badge {{ 'badge-veg' if d.food_type=='veg' else 'badge-nonveg' }}">{{ d.food_type }}</span></td>
+              <td>{{ d.quantity }}</td>
+              <td><small class="{{ 'text-danger' if d.status == 'expired' else '' }}">
+                {{ d.expiry_time.strftime('%d %b %H:%M') if d.expiry_time else 'N/A' }}
+              </small></td>
+              <td><span class="status-badge status-{{ d.status }}">{{ d.status }}</span></td>
+              <td><small>{{ d.ngo_name or '—' }}</small></td>
+              <td><small>{{ d.created_at.strftime('%d %b') if d.created_at else '' }}</small></td>
+              <td>
+                {% if d.status not in ['removed', 'completed'] %}
+                <button class="btn btn-xs btn-outline-danger"
+                        data-bs-toggle="modal" data-bs-target="#removeModal{{ d.id }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+                {% else %}
+                <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            <!-- Remove Modal -->
+            <div class="modal fade" id="removeModal{{ d.id }}" tabindex="-1">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content rounded-4 border-0">
+                  <div class="modal-header border-0">
+                    <h5 class="modal-title">Remove Donation</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <form method="POST" action="{{ url_for('admin.remove_donation', donation_id=d.id) }}">
+                    <div class="modal-body">
+                      <p>Remove <strong>{{ d.food_name }}</strong> by {{ d.donor_org or d.donor_name }}?</p>
+                      <label class="form-label">Reason</label>
+                      <select name="reason" class="form-select fb-input">
+                        <option>Expired / Unsafe food</option>
+                        <option>Fake listing</option>
+                        <option>Duplicate post</option>
+                        <option>Donor request</option>
+                        <option>Admin review</option>
+                      </select>
+                    </div>
+                    <div class="modal-footer border-0">
+                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-danger">Remove</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            {% else %}
+            <tr><td colspan="10" class="text-center text-muted py-4">No donations found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

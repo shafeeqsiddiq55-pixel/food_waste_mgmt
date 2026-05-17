@@ -1,0 +1,136 @@
+<!-- templates/admin/users.html -->
+{% extends 'base.html' %}
+{% block title %}Manage Users – FoodBridge Admin{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="dashboard-header mb-4">
+    <div>
+      <h2 class="dashboard-title">👥 Manage Users</h2>
+      <p class="text-muted">{{ users | length }} users found</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-accent">
+      <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+    </a>
+  </div>
+
+  <!-- Search & Filter -->
+  <div class="card fb-card mb-4">
+    <div class="card-body py-3">
+      <form method="GET" class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <input type="text" name="search" value="{{ search }}" class="form-control fb-input"
+                 placeholder="🔍  Search name, email, organization..."/>
+        </div>
+        <div class="col-md-3">
+          <select name="role" class="form-select fb-input">
+            <option value="" {% if not role_filter %}selected{% endif %}>All Roles</option>
+            <option value="donor" {% if role_filter=='donor' %}selected{% endif %}>🏨 Donors</option>
+            <option value="ngo" {% if role_filter=='ngo' %}selected{% endif %}>🤝 NGOs</option>
+            <option value="admin" {% if role_filter=='admin' %}selected{% endif %}>⚙️ Admins</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-accent w-100">Filter</button>
+        </div>
+        <div class="col-md-2">
+          <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary w-100">Clear</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Users Table -->
+  <div class="card fb-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table fb-table mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name / Organization</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Phone</th>
+              <th>City</th>
+              <th>Joined</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr class="{{ 'table-secondary opacity-50' if not u.is_active }}">
+              <td class="text-muted">{{ loop.index }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="user-avatar-sm">{{ u.name[0].upper() }}</div>
+                  <div>
+                    <strong>{{ u.name }}</strong>
+                    {% if u.organization_name %}
+                    <div class="text-muted small">{{ u.organization_name }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              <td><small>{{ u.email }}</small></td>
+              <td>
+                <span class="role-pill role-{{ u.role }}">
+                  {{ '🏨' if u.role == 'donor' else '🤝' if u.role == 'ngo' else '⚙️' }}
+                  {{ u.role | capitalize }}
+                </span>
+              </td>
+              <td><small>{{ u.phone or '—' }}</small></td>
+              <td><small>{{ u.city or '—' }}</small></td>
+              <td><small>{{ u.created_at.strftime('%d %b %Y') if u.created_at else 'N/A' }}</small></td>
+              <td>
+                {% if u.is_active %}
+                <span class="status-badge status-available">Active</span>
+                {% else %}
+                <span class="status-badge status-expired">Inactive</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if u.id != session.user_id %}
+                <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}"
+                      onsubmit="return confirm('{{ 'Deactivate' if u.is_active else 'Activate' }} this user?')">
+                  <button class="btn btn-xs {{ 'btn-outline-danger' if u.is_active else 'btn-outline-success' }}">
+                    {{ 'Deactivate' if u.is_active else 'Activate' }}
+                  </button>
+                </form>
+                {% else %}
+                <span class="text-muted small">You</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="9" class="text-center text-muted py-4">No users found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.user-avatar-sm {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent-light); color: var(--accent-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+}
+.role-pill {
+  font-size: 0.75rem; padding: 3px 10px; border-radius: 20px;
+  font-weight: 600; display: inline-block;
+}
+.role-pill.role-donor  { background: #d6eaf8; color: #1a5276; }
+.role-pill.role-ngo    { background: #d5f5e3; color: #1a6635; }
+.role-pill.role-admin  { background: #e8daef; color: #4a235a; }
+</style>
+{% endblock %}

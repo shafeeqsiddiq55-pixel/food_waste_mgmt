@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}FoodBridge – Reduce Food Waste, Feed the Needy{% endblock %}
+{% block content %}
+
+<!-- HERO -->
+<section class="hero-section">
+  <div class="hero-bg-shapes"><div class="shape shape-1"></div><div class="shape shape-2"></div></div>
+  <div class="container-xl py-5">
+    <div class="row align-items-center min-vh-75 py-5">
+      <div class="col-lg-6">
+        <span class="badge badge-hero mb-3">🌍 Fighting Food Waste Together</span>
+        <h1 class="hero-title">Turn Surplus Food<br/>Into <span class="highlight">Hope</span></h1>
+        <p class="hero-desc">Connecting wedding halls, hotels & events with NGOs to ensure no meal goes to waste. Every donation feeds a family.</p>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+          <a href="{{ url_for('auth.register') }}" class="btn btn-accent btn-lg px-4"><i class="bi bi-heart me-2"></i>Start Donating</a>
+          <a href="#how-it-works" class="btn btn-outline-light btn-lg px-4">How It Works</a>
+        </div>
+        <div class="hero-stats mt-5 d-flex gap-4 flex-wrap">
+          <div class="stat-item"><span class="stat-num" id="counterMeals">0</span><span class="stat-label">Meals Saved</span></div>
+          <div class="stat-divider"></div>
+          <div class="stat-item"><span class="stat-num" id="counterDonors">0</span><span class="stat-label">Active Donors</span></div>
+          <div class="stat-divider"></div>
+          <div class="stat-item"><span class="stat-num" id="counterNGOs">0</span><span class="stat-label">NGO Partners</span></div>
+        </div>
+      </div>
+      <div class="col-lg-6 mt-5 mt-lg-0">
+        <div id="heroMap" class="hero-map-preview"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works" class="section-alt py-6">
+  <div class="container-xl py-5">
+    <div class="section-header text-center mb-5">
+      <span class="section-tag">Process</span>
+      <h2 class="section-title">How FoodBridge Works</h2>
+      <p class="section-sub">A simple 3-step process to connect surplus food with those who need it</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-md-4"><div class="how-card"><div class="how-icon-wrap"><span class="how-icon">📋</span><span class="step-num">1</span></div><h4>Post Your Surplus</h4><p>Donors list available food with quantity, type, pickup time and location.</p></div></div>
+      <div class="col-md-4"><div class="how-card"><div class="how-icon-wrap"><span class="how-icon">🔍</span><span class="step-num">2</span></div><h4>NGO Accepts</h4><p>Nearby NGOs are notified and can accept the pickup request instantly.</p></div></div>
+      <div class="col-md-4"><div class="how-card"><div class="how-icon-wrap"><span class="how-icon">🤝</span><span class="step-num">3</span></div><h4>Food Reaches the Needy</h4><p>NGOs collect and distribute food, tracking every meal saved.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- LIVE MAP -->
+<section class="py-6">
+  <div class="container-xl py-5">
+    <div class="section-header text-center mb-4">
+      <span class="section-tag">Live Map</span>
+      <h2 class="section-title">Available Donations Near You</h2>
+      <p class="section-sub"><span style="color:#27ae60">●</span> Vegetarian &nbsp;|&nbsp; <span style="color:#e74c3c">●</span> Non-Vegetarian</p>
+    </div>
+    <div class="map-container rounded-4 shadow-lg overflow-hidden">
+      <div id="mainMap" style="height:450px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section py-6">
+  <div class="container-xl py-5 text-center">
+    <h2 class="cta-title">Ready to Make a Difference?</h2>
+    <p class="cta-sub">Join donors and NGOs already fighting food waste</p>
+    <div class="d-flex justify-content-center gap-3 flex-wrap mt-4">
+      <a href="{{ url_for('auth.register') }}?role=donor" class="btn btn-accent btn-lg px-5"><i class="bi bi-building me-2"></i>I'm a Donor</a>
+      <a href="{{ url_for('auth.register') }}?role=ngo" class="btn btn-outline-accent btn-lg px-5"><i class="bi bi-people me-2"></i>I'm an NGO</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Counter animation
+function animateCounter(el, target) {
+  let v = 0, step = target / 120;
+  const t = setInterval(() => { v += step; if (v >= target) { el.textContent = target.toLocaleString(); clearInterval(t); } else el.textContent = Math.floor(v).toLocaleString(); }, 16);
+}
+window.addEventListener('load', () => {
+  animateCounter(document.getElementById('counterMeals'), 12840);
+  animateCounter(document.getElementById('counterDonors'), 340);
+  animateCounter(document.getElementById('counterNGOs'), 87);
+});
+
+// Hero mini map
+const heroMap = L.map('heroMap', { zoomControl: false, attributionControl: false }).setView([20.5937, 78.9629], 4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(heroMap);
+
+// Main map
+const mainMap = L.map('mainMap').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+}).addTo(mainMap);
+
+function makeIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>`,
+    iconSize: [16, 16], iconAnchor: [8, 8]
+  });
+}
+
+fetch('/api/donations/map').then(r => r.json()).then(data => {
+  if (!data.donations.length) return;
+  const bounds = [];
+  data.donations.forEach(d => {
+    const lat = parseFloat(d.latitude), lng = parseFloat(d.longitude);
+    const icon = makeIcon(d.food_type === 'veg' ? '#27ae60' : '#e74c3c');
+    L.marker([lat, lng], { icon }).addTo(mainMap).bindPopup(`
+      <div style="min-width:190px;font-family:sans-serif">
+        <strong>${d.food_name}</strong><br>
+        <small style="color:#666">${d.food_type.toUpperCase()} · ${d.quantity} servings</small><br>
+        <small>${d.address}</small><br>
+        <small style="color:#e74c3c">⏰ ${new Date(d.expiry_time).toLocaleString()}</small>
+      </div>`);
+    bounds.push([lat, lng]);
+  });
+  mainMap.fitBounds(bounds, { padding: [50, 50] });
+});
+
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(p => mainMap.setView([p.coords.latitude, p.coords.longitude], 12));
+}
+</script>
+{% endblock %}

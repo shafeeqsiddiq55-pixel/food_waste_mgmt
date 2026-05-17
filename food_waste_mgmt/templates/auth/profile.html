@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}My Profile – FoodBridge{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card fb-card">
+        <div class="card-header">
+          <h4 class="mb-0"><i class="bi bi-person-circle text-accent me-2"></i>My Profile</h4>
+        </div>
+        <div class="card-body p-4">
+          <form method="POST" action="{{ url_for('auth.profile') }}">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Full Name *</label>
+                <input type="text" name="name" class="form-control fb-input" value="{{ user.name }}" required/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email (read-only)</label>
+                <input type="email" class="form-control fb-input" value="{{ user.email }}" disabled/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Phone</label>
+                <input type="tel" name="phone" class="form-control fb-input" value="{{ user.phone or '' }}"/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Role</label>
+                <input type="text" class="form-control fb-input" value="{{ user.role | capitalize }}" disabled/>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Organization Name</label>
+                <input type="text" name="organization_name" class="form-control fb-input"
+                       value="{{ user.organization_name or '' }}"
+                       placeholder="{{ 'Hotel / Marriage Hall / Event name' if user.role == 'donor' else 'NGO Name' }}"/>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Address</label>
+                <input type="text" name="address" class="form-control fb-input" value="{{ user.address or '' }}"/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">City</label>
+                <input type="text" name="city" class="form-control fb-input" value="{{ user.city or '' }}"/>
+              </div>
+
+              <input type="hidden" name="latitude"  id="latInput"  value="{{ user.latitude  or '' }}"/>
+              <input type="hidden" name="longitude" id="lngInput" value="{{ user.longitude or '' }}"/>
+
+              <div class="col-12">
+                <label class="form-label">Your Location <small class="text-muted">(used for distance calculation)</small></label>
+                <div id="profileMap" style="height:250px;border-radius:12px;border:2px solid #e8f5e9;"></div>
+                <button type="button" class="btn btn-outline-accent btn-sm mt-2" onclick="getLocation()">
+                  <i class="bi bi-crosshair me-1"></i>Use My Current Location
+                </button>
+                <span id="locStatus" class="ms-2 small text-muted"></span>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3 mt-4">
+              <button type="submit" class="btn btn-accent px-4">
+                <i class="bi bi-check-circle me-2"></i>Save Changes
+              </button>
+              <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const initLat = {{ user.latitude or 20.5937 }};
+const initLng = {{ user.longitude or 78.9629 }};
+
+const profileMap = L.map('profileMap').setView([initLat, initLng], {{ 14 if user.latitude else 5 }});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+}).addTo(profileMap);
+
+let marker = null;
+
+{% if user.latitude %}
+marker = L.marker([initLat, initLng], { draggable: true }).addTo(profileMap);
+marker.on('dragend', e => setCoords(e.target.getLatLng().lat, e.target.getLatLng().lng));
+{% endif %}
+
+profileMap.on('click', function(e) {
+  if (marker) profileMap.removeLayer(marker);
+  marker = L.marker([e.latlng.lat, e.latlng.lng], { draggable: true }).addTo(profileMap);
+  marker.on('dragend', ev => setCoords(ev.target.getLatLng().lat, ev.target.getLatLng().lng));
+  setCoords(e.latlng.lat, e.latlng.lng);
+});
+
+function setCoords(lat, lng) {
+  document.getElementById('latInput').value = lat;
+  document.getElementById('lngInput').value = lng;
+  document.getElementById('locStatus').textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+function getLocation() {
+  if (navigator.geolocation) {
+    document.getElementById('locStatus').textContent = 'Getting location...';
+    navigator.geolocation.getCurrentPosition(pos => {
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      profileMap.setView([lat, lng], 15);
+      if (marker) profileMap.removeLayer(marker);
+      marker = L.marker([lat, lng], { draggable: true }).addTo(profileMap);
+      marker.on('dragend', e => setCoords(e.target.getLatLng().lat, e.target.getLatLng().lng));
+      setCoords(lat, lng);
+    }, () => { document.getElementById('locStatus').textContent = '⚠️ Location access denied'; });
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,150 @@
+<!-- templates/admin/dashboard.html -->
+{% extends 'base.html' %}
+{% block title %}Admin Panel – FoodBridge{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="dashboard-header mb-4">
+    <div>
+      <h2 class="dashboard-title">Admin Control Panel ⚙️</h2>
+      <p class="text-muted">Monitor and manage the entire platform</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-accent">
+        <i class="bi bi-people me-1"></i>Users
+      </a>
+      <a href="{{ url_for('admin.all_donations') }}" class="btn btn-outline-accent">
+        <i class="bi bi-box-seam me-1"></i>Donations
+      </a>
+      <a href="{{ url_for('admin.statistics') }}" class="btn btn-accent">
+        <i class="bi bi-graph-up me-1"></i>Statistics
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="row g-4 mb-5">
+    <div class="col-6 col-lg-2">
+      <div class="stat-card blue"><div class="stat-card-icon"><i class="bi bi-building"></i></div>
+        <div class="stat-card-num">{{ total_donors }}</div><div class="stat-card-label">Donors</div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card green"><div class="stat-card-icon"><i class="bi bi-people"></i></div>
+        <div class="stat-card-num">{{ total_ngos }}</div><div class="stat-card-label">NGOs</div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card orange"><div class="stat-card-icon"><i class="bi bi-box-seam"></i></div>
+        <div class="stat-card-num">{{ total_donations }}</div><div class="stat-card-label">Donations</div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card purple"><div class="stat-card-icon"><i class="bi bi-heart"></i></div>
+        <div class="stat-card-num">{{ total_meals_saved }}</div><div class="stat-card-label">Meals Saved</div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card green"><div class="stat-card-icon"><i class="bi bi-check-circle"></i></div>
+        <div class="stat-card-num">{{ active_donations }}</div><div class="stat-card-label">Active Now</div></div>
+    </div>
+    <div class="col-6 col-lg-2">
+      <div class="stat-card red"><div class="stat-card-icon"><i class="bi bi-x-circle"></i></div>
+        <div class="stat-card-num">{{ expired_donations }}</div><div class="stat-card-label">Expired</div></div>
+    </div>
+  </div>
+
+  <!-- Chart + Recent Donations -->
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card fb-card">
+        <div class="card-header"><h5 class="mb-0"><i class="bi bi-bar-chart text-accent me-2"></i>Monthly Donations</h5></div>
+        <div class="card-body">
+          <canvas id="donationsChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card fb-card h-100">
+        <div class="card-header"><h5 class="mb-0"><i class="bi bi-lightning text-accent me-2"></i>Quick Actions</h5></div>
+        <div class="card-body d-flex flex-column gap-3">
+          <a href="{{ url_for('admin.manage_users') }}?role=donor" class="btn btn-outline-accent text-start">
+            <i class="bi bi-building me-2"></i>Manage Donors
+          </a>
+          <a href="{{ url_for('admin.manage_users') }}?role=ngo" class="btn btn-outline-accent text-start">
+            <i class="bi bi-people me-2"></i>Manage NGOs
+          </a>
+          <a href="{{ url_for('admin.all_donations') }}?status=available" class="btn btn-outline-accent text-start">
+            <i class="bi bi-list-check me-2"></i>Active Donations
+          </a>
+          <a href="{{ url_for('admin.all_donations') }}?status=expired" class="btn btn-outline-danger text-start">
+            <i class="bi bi-trash me-2"></i>Expired Listings
+          </a>
+          <a href="{{ url_for('admin.statistics') }}" class="btn btn-accent text-start">
+            <i class="bi bi-graph-up me-2"></i>Full Statistics
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Donations Table -->
+  <div class="card fb-card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-clock-history text-accent me-2"></i>Recent Donations</h5>
+      <a href="{{ url_for('admin.all_donations') }}" class="btn btn-sm btn-outline-accent">View All</a>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table fb-table mb-0">
+          <thead>
+            <tr><th>Donor</th><th>Food</th><th>Qty</th><th>Status</th><th>Posted</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for d in recent_donations %}
+            <tr>
+              <td>{{ d.donor_org or d.donor_name }}</td>
+              <td><strong>{{ d.food_name }}</strong></td>
+              <td>{{ d.quantity }}</td>
+              <td><span class="status-badge status-{{ d.status }}">{{ d.status }}</span></td>
+              <td><small>{{ d.created_at.strftime('%d %b %Y') if d.created_at else 'N/A' }}</small></td>
+              <td>
+                {% if d.status not in ['removed','completed'] %}
+                <form method="POST" action="{{ url_for('admin.remove_donation', donation_id=d.id) }}" class="d-inline" onsubmit="return confirm('Remove this donation?')">
+                  <input type="hidden" name="reason" value="Removed by admin"/>
+                  <button class="btn btn-xs btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const stats = {{ monthly_stats | tojson }};
+const labels = stats.map(s => s.month).reverse();
+const donations = stats.map(s => s.cnt).reverse();
+const meals = stats.map(s => s.meals).reverse();
+
+new Chart(document.getElementById('donationsChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: 'Donations', data: donations, backgroundColor: 'rgba(46,204,113,0.8)', borderRadius: 8 },
+      { label: 'Meals', data: meals, backgroundColor: 'rgba(52,152,219,0.6)', borderRadius: 8 }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } } }
+  }
+});
+</script>
+{% endblock %}

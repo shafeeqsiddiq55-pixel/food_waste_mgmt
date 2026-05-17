@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Available Donations – FoodBridge{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="dashboard-header mb-4">
+    <div>
+      <h2 class="dashboard-title">🍽️ Available Donations</h2>
+      <p class="text-muted">Browse and accept food donations near you</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-accent btn-sm" onclick="toggleView('list')" id="btnList">
+        <i class="bi bi-list-ul me-1"></i>List
+      </button>
+      <button class="btn btn-accent btn-sm" onclick="toggleView('map')" id="btnMap">
+        <i class="bi bi-map me-1"></i>Map
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="card fb-card mb-4">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <input type="text" id="liveSearch" class="form-control fb-input" placeholder="🔍  Search food, location..."/>
+        </div>
+        <div class="col-md-3">
+          <select id="filterType" class="form-select fb-input" onchange="filterCards()">
+            <option value="">All Types</option>
+            <option value="veg">🟢 Vegetarian</option>
+            <option value="non-veg">🔴 Non-Veg</option>
+            <option value="mixed">🟡 Mixed</option>
+          </select>
+        </div>
+        <div class="col-md-4 text-end">
+          <span class="text-muted small" id="resultCount">{{ donations | length }} listings</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map View -->
+  <div id="mapView" style="display:none" class="mb-4">
+    <div class="map-container shadow rounded-4 overflow-hidden" style="height:500px;">
+      <div id="fullMap" style="height:100%;"></div>
+    </div>
+  </div>
+
+  <!-- List View -->
+  <div id="listView">
+    {% if donations %}
+    <div class="row g-4" id="donationCards">
+      {% for d in donations %}
+      <div class="col-md-6 col-lg-4 donation-card-wrap" data-type="{{ d.food_type }}">
+        <div class="card fb-card h-100 donation-card">
+          {% if d.image_url %}
+          <img src="{{ d.image_url }}" class="card-img-top" style="height:150px;object-fit:cover;" alt="{{ d.food_name }}"/>
+          {% else %}
+          <div style="height:100px;background:linear-gradient(135deg,#d5f5e3,#a9dfbf);display:flex;align-items:center;justify-content:center;font-size:3rem">
+            {{ '🥗' if d.food_type == 'veg' else '🍗' if d.food_type == 'non-veg' else '🍽️' }}
+          </div>
+          {% endif %}
+
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <h6 class="mb-0 fw-bold">{{ d.food_name }}</h6>
+              <span class="badge {{ 'badge-veg' if d.food_type=='veg' else 'badge-nonveg' }}">{{ d.food_type }}</span>
+            </div>
+            <p class="text-muted small mb-2"><i class="bi bi-building me-1"></i>{{ d.donor_org or d.donor_name }}</p>
+
+            <div class="row g-1 small text-muted mb-3">
+              <div class="col-6"><i class="bi bi-people me-1 text-accent"></i>{{ d.quantity }} servings</div>
+              <div class="col-6">
+                {% if d.get('distance') %}<i class="bi bi-signpost me-1 text-info"></i>{{ d.distance }} km{% endif %}
+              </div>
+              <div class="col-12"><i class="bi bi-clock me-1 text-warning"></i>
+                Expires: <span class="text-danger fw-semibold">{{ d.expiry_time.strftime('%d %b %H:%M') if d.expiry_time else 'N/A' }}</span>
+              </div>
+              <div class="col-12"><i class="bi bi-geo-alt me-1 text-danger"></i>{{ d.address | truncate(50) }}</div>
+            </div>
+
+            {% if d.special_notes %}
+            <p class="text-muted small border-top pt-2 mb-2"><i class="bi bi-info-circle me-1"></i>{{ d.special_notes | truncate(80) }}</p>
+            {% endif %}
+
+            <!-- Expiry warning -->
+            {% if d.expiry_time %}
+              {% set diff_hours = ((d.expiry_time - now).total_seconds() / 3600) %}
+              {% if diff_hours < 2 %}
+              <div class="alert alert-danger py-1 px-2 small mb-2 rounded-2">⚠️ Expiring in &lt;2 hours! Act fast.</div>
+              {% elif diff_hours < 4 %}
+              <div class="alert alert-warning py-1 px-2 small mb-2 rounded-2">⚡ Expiring in {{ diff_hours | int }} hours.</div>
+              {% endif %}
+            {% endif %}
+
+            <div class="d-flex gap-2 mt-auto">
+              <form method="POST" action="{{ url_for('ngo.accept_donation', donation_id=d.id) }}" class="flex-fill">
+                <button class="btn btn-accent w-100 btn-sm"><i class="bi bi-check-circle me-1"></i>Accept Pickup</button>
+              </form>
+              {% if d.latitude and d.longitude %}
+              <a href="https://www.openstreetmap.org/?mlat={{ d.latitude }}&mlon={{ d.longitude }}&zoom=16"
+                 target="_blank" class="btn btn-outline-accent btn-sm px-2" title="View on Map"><i class="bi bi-map"></i></a>
+              {% endif %}
+              {% if d.contact_phone or d.donor_phone %}
+              <a href="tel:{{ d.contact_phone or d.donor_phone }}"
+                 class="btn btn-outline-secondary btn-sm px-2" title="Call"><i class="bi bi-telephone"></i></a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state text-center py-5">
+      <div class="empty-icon">🍽️</div>
+      <h5 class="mt-3">No donations available right now</h5>
+      <p class="text-muted">Check back soon!</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.donation-card { transition: transform 0.2s, box-shadow 0.2s; }
+.donation-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,0.12); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const now = new Date();
+let mapInitialized = false;
+let leafletMap = null;
+
+function makeIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>`,
+    iconSize:[16,16], iconAnchor:[8,8]
+  });
+}
+
+function initLeafletMap() {
+  if (mapInitialized) return;
+  leafletMap = L.map('fullMap').setView([20.5937, 78.9629], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+  }).addTo(leafletMap);
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      leafletMap.setView([pos.coords.latitude, pos.coords.longitude], 12);
+      L.marker([pos.coords.latitude, pos.coords.longitude], { icon: makeIcon('#2980b9') })
+        .addTo(leafletMap).bindPopup('Your Location').openPopup();
+    });
+  }
+
+  fetch('/api/donations/map').then(r => r.json()).then(data => {
+    data.donations.forEach(d => {
+      const lat = parseFloat(d.latitude), lng = parseFloat(d.longitude);
+      L.marker([lat, lng], { icon: makeIcon(d.food_type === 'veg' ? '#27ae60' : '#e74c3c') })
+        .addTo(leafletMap).bindPopup(`
+          <div style="min-width:200px;font-family:sans-serif">
+            <strong>${d.food_name}</strong><br>
+            <small>${d.food_type.toUpperCase()} · ${d.quantity} servings</small><br>
+            <small>${d.address}</small><br>
+            <small style="color:#e74c3c">⏰ ${new Date(d.expiry_time).toLocaleString()}</small><br>
+            <div style="margin-top:8px">
+              <a href="/ngo/accept/${d.id}"
+                style="background:#27ae60;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none"
+                onclick="return confirm('Accept ${d.food_name}?')">Accept</a>
+              <a href="https://www.openstreetmap.org/directions?to=${d.latitude},${d.longitude}" target="_blank"
+                style="background:#2980b9;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;margin-left:4px">Directions</a>
+            </div>
+          </div>`);
+    });
+  });
+  mapInitialized = true;
+}
+
+function toggleView(view) {
+  if (view === 'map') {
+    document.getElementById('listView').style.display = 'none';
+    document.getElementById('mapView').style.display = 'block';
+    document.getElementById('btnMap').className = 'btn btn-accent btn-sm';
+    document.getElementById('btnList').className = 'btn btn-outline-accent btn-sm';
+    setTimeout(() => { initLeafletMap(); if (leafletMap) leafletMap.invalidateSize(); }, 100);
+  } else {
+    document.getElementById('listView').style.display = 'block';
+    document.getElementById('mapView').style.display = 'none';
+    document.getElementById('btnList').className = 'btn btn-accent btn-sm';
+    document.getElementById('btnMap').className = 'btn btn-outline-accent btn-sm';
+  }
+}
+
+function filterCards() {
+  const type = document.getElementById('filterType').value;
+  let count = 0;
+  document.querySelectorAll('.donation-card-wrap').forEach(c => {
+    const match = !type || c.dataset.type === type;
+    c.style.display = match ? '' : 'none';
+    if (match) count++;
+  });
+  document.getElementById('resultCount').textContent = count + ' listings';
+}
+
+document.getElementById('liveSearch').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  let count = 0;
+  document.querySelectorAll('.donation-card-wrap').forEach(c => {
+    const match = c.textContent.toLowerCase().includes(q);
+    c.style.display = match ? '' : 'none';
+    if (match) count++;
+  });
+  document.getElementById('resultCount').textContent = count + ' listings';
+});
+</script>
+{% endblock %}

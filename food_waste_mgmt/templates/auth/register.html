@@ -1,0 +1,88 @@
+<!-- templates/auth/register.html -->
+{% extends 'base.html' %}
+{% block title %}Register – FoodBridge{% endblock %}
+{% block content %}
+<div class="auth-page d-flex align-items-center justify-content-center py-5">
+  <div class="auth-card auth-card-wide">
+    <div class="text-center mb-4">
+      <span style="font-size:2.5rem">🌾</span>
+      <h2 class="auth-title mt-2">Join FoodBridge</h2>
+      <p class="text-muted small">Create your account and start making a difference</p>
+    </div>
+
+    <!-- Role Selector -->
+    <div class="role-selector mb-4">
+      <div class="role-option" id="roleDonor" onclick="selectRole('donor')">
+        <span class="role-icon">🏨</span>
+        <span class="role-label">Food Donor</span>
+        <span class="role-desc">Hotel, Marriage Hall, Event</span>
+      </div>
+      <div class="role-option" id="roleNGO" onclick="selectRole('ngo')">
+        <span class="role-icon">🤝</span>
+        <span class="role-label">NGO / Collector</span>
+        <span class="role-desc">Collect & Distribute Food</span>
+      </div>
+    </div>
+    <input type="hidden" name="role" id="roleInput" value="donor"/>
+
+    <form method="POST" action="{{ url_for('auth.register') }}" id="registerForm">
+      <input type="hidden" name="role" id="hiddenRole" value="donor"/>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Full Name *</label>
+          <input type="text" name="name" class="form-control fb-input" placeholder="Your full name" required/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Email Address *</label>
+          <input type="email" name="email" class="form-control fb-input" placeholder="you@example.com" required/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Password *</label>
+          <input type="password" name="password" class="form-control fb-input" placeholder="Min 8 characters" required minlength="8"/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Confirm Password *</label>
+          <input type="password" name="confirm_password" class="form-control fb-input" placeholder="Repeat password" required/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Phone Number</label>
+          <input type="tel" name="phone" class="form-control fb-input" placeholder="+91 9999999999"/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Organization Name</label>
+          <input type="text" name="organization_name" class="form-control fb-input" placeholder="Hotel / NGO name"/>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Address</label>
+          <input type="text" name="address" class="form-control fb-input" placeholder="Full address"/>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">City</label>
+          <input type="text" name="city" class="form-control fb-input" placeholder="Your city"/>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-accent w-100 py-2 mt-4">
+        <i class="bi bi-person-plus me-2"></i>Create Account
+      </button>
+    </form>
+
+    <div class="text-center mt-3">
+      <span class="text-muted small">Already have an account?</span>
+      <a href="{{ url_for('auth.login') }}" class="ms-1 text-accent fw-semibold small">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function selectRole(role) {
+  document.querySelectorAll('.role-option').forEach(el => el.classList.remove('active'));
+  document.getElementById(role === 'donor' ? 'roleDonor' : 'roleNGO').classList.add('active');
+  document.getElementById('hiddenRole').value = role;
+}
+// Set donor active by default
+selectRole('donor');
+// Auto-select from URL param
+const urlRole = new URLSearchParams(window.location.search).get('role');
+if (urlRole) selectRole(urlRole);
+</script>
+{% endblock %}

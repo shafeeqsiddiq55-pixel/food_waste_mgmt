@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Post Food Donation – FoodBridge{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+      <div class="card fb-card">
+        <div class="card-header">
+          <h4 class="mb-0"><i class="bi bi-plus-circle text-accent me-2"></i>Post Food Donation</h4>
+          <p class="text-muted small mb-0">Fill in the details so NGOs can collect your food</p>
+        </div>
+        <div class="card-body p-4">
+
+          <div class="alert alert-warning rounded-3 mb-4">
+            <i class="bi bi-shield-exclamation me-2"></i>
+            <strong>Food Safety Reminder:</strong> Only donate food that is freshly prepared, stored properly, and safe to consume. Do not donate food left out for more than 2 hours.
+          </div>
+
+          <form method="POST" enctype="multipart/form-data" action="{{ url_for('donor.donate') }}">
+
+            <h6 class="form-section-title"><i class="bi bi-cup-hot me-2"></i>Food Information</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label">Food Name *</label>
+                <input type="text" name="food_name" class="form-control fb-input" placeholder="e.g. Wedding Biryani, Dal Makhani" required/>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Food Type *</label>
+                <select name="food_type" class="form-select fb-input" required>
+                  <option value="veg">🟢 Vegetarian</option>
+                  <option value="non-veg">🔴 Non-Vegetarian</option>
+                  <option value="mixed">🟡 Mixed</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Quantity (Servings) *</label>
+                <input type="number" name="quantity" class="form-control fb-input" placeholder="100" min="1" required/>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control fb-input" rows="2" placeholder="Brief description of the food items..."></textarea>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Food Photo</label>
+                <input type="file" name="food_image" class="form-control fb-input" accept="image/*"/>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label">Special Notes</label>
+                <input type="text" name="special_notes" class="form-control fb-input" placeholder="Allergies, packaging notes, etc."/>
+              </div>
+            </div>
+
+            <h6 class="form-section-title"><i class="bi bi-clock me-2"></i>Timing</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <label class="form-label">Expiry Time *</label>
+                <input type="datetime-local" name="expiry_time" class="form-control fb-input" required/>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Pickup From *</label>
+                <input type="datetime-local" name="pickup_start_time" class="form-control fb-input" required/>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Pickup Until *</label>
+                <input type="datetime-local" name="pickup_end_time" class="form-control fb-input" required/>
+              </div>
+            </div>
+
+            <h6 class="form-section-title"><i class="bi bi-geo-alt me-2"></i>Pickup Location</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-12">
+                <label class="form-label">Full Address *</label>
+                <input type="text" name="address" id="addressInput" class="form-control fb-input" placeholder="Enter full pickup address" required/>
+              </div>
+              <div class="col-12">
+                <!-- Leaflet map for picking location -->
+                <div id="donationMap" style="height:300px;border-radius:12px;border:2px solid #e8f5e9;"></div>
+                <small class="text-muted mt-1 d-block">
+                  <i class="bi bi-hand-index me-1"></i>Click on the map to set the precise pickup location, or use the button below.
+                </small>
+              </div>
+              <input type="hidden" name="latitude" id="latInput"/>
+              <input type="hidden" name="longitude" id="lngInput"/>
+              <div class="col-auto">
+                <button type="button" class="btn btn-outline-accent btn-sm" onclick="getMyLocation()">
+                  <i class="bi bi-crosshair me-1"></i>Use My Current Location
+                </button>
+                <span id="locationStatus" class="ms-2 small text-muted"></span>
+              </div>
+            </div>
+
+            <h6 class="form-section-title"><i class="bi bi-person me-2"></i>Contact for Pickup</h6>
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label">Contact Person</label>
+                <input type="text" name="contact_person" class="form-control fb-input" placeholder="Name of person at pickup location"/>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Contact Phone</label>
+                <input type="tel" name="contact_phone" class="form-control fb-input" placeholder="+91 9999999999"/>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3 mt-2">
+              <button type="submit" class="btn btn-accent px-5 py-2">
+                <i class="bi bi-send me-2"></i>Post Donation
+              </button>
+              <a href="{{ url_for('donor.dashboard') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Leaflet map for picking donation location ─────────────
+const donationMap = L.map('donationMap').setView([20.5937, 78.9629], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+}).addTo(donationMap);
+
+let marker = null;
+
+function setMarker(lat, lng) {
+  if (marker) donationMap.removeLayer(marker);
+  marker = L.marker([lat, lng], { draggable: true }).addTo(donationMap);
+  marker.on('dragend', function(e) {
+    const pos = e.target.getLatLng();
+    updateCoords(pos.lat, pos.lng);
+  });
+  updateCoords(lat, lng);
+  donationMap.setView([lat, lng], 15);
+}
+
+function updateCoords(lat, lng) {
+  document.getElementById('latInput').value = lat;
+  document.getElementById('lngInput').value = lng;
+  document.getElementById('locationStatus').textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+donationMap.on('click', function(e) {
+  setMarker(e.latlng.lat, e.latlng.lng);
+});
+
+function getMyLocation() {
+  if (navigator.geolocation) {
+    document.getElementById('locationStatus').textContent = 'Getting location...';
+    navigator.geolocation.getCurrentPosition(
+      pos => setMarker(pos.coords.latitude, pos.coords.longitude),
+      () => { document.getElementById('locationStatus').textContent = '⚠️ Location access denied'; }
+    );
+  } else {
+    alert('Geolocation not supported by your browser.');
+  }
+}
+
+// Set min datetime to now
+const now = new Date().toISOString().slice(0,16);
+document.querySelectorAll('input[type="datetime-local"]').forEach(i => i.min = now);
+</script>
+{% endblock %}

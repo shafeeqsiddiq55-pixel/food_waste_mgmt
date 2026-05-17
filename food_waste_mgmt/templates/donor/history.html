@@ -1,0 +1,96 @@
+<!-- templates/donor/history.html -->
+{% extends 'base.html' %}
+{% block title %}Donation History – FoodBridge{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="dashboard-header mb-4">
+    <div>
+      <h2 class="dashboard-title">📈 Donation History</h2>
+      <p class="text-muted">Your impact over time</p>
+    </div>
+    <a href="{{ url_for('donor.dashboard') }}" class="btn btn-outline-accent">
+      <i class="bi bi-arrow-left me-1"></i>Dashboard
+    </a>
+  </div>
+
+  <!-- Monthly Chart -->
+  {% if monthly_stats %}
+  <div class="card fb-card mb-5">
+    <div class="card-header"><h5 class="mb-0"><i class="bi bi-graph-up text-accent me-2"></i>Monthly Impact</h5></div>
+    <div class="card-body">
+      <canvas id="historyChart" height="80"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Completed Donations -->
+  <div class="card fb-card">
+    <div class="card-header"><h5 class="mb-0"><i class="bi bi-check-circle text-accent me-2"></i>Completed Donations</h5></div>
+    <div class="card-body p-0">
+      {% if history %}
+      <div class="table-responsive">
+        <table class="table fb-table mb-0">
+          <thead>
+            <tr><th>Food</th><th>Qty</th><th>NGO</th><th>People Fed</th><th>Collected On</th></tr>
+          </thead>
+          <tbody>
+            {% for h in history %}
+            <tr>
+              <td><strong>{{ h.food_name }}</strong><br/><span class="badge {{ 'badge-veg' if h.food_type=='veg' else 'badge-nonveg' }}">{{ h.food_type }}</span></td>
+              <td>{{ h.quantity }}</td>
+              <td>{{ h.ngo_org or h.ngo_name or '—' }}</td>
+              <td><strong class="text-success">{{ h.beneficiaries_count or h.quantity }} 🙏</strong></td>
+              <td>{{ h.collected_time.strftime('%d %b %Y') if h.collected_time else 'N/A' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state text-center py-5">
+        <div class="empty-icon">📦</div>
+        <p>No completed donations yet. Keep donating!</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if monthly_stats %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const stats = {{ monthly_stats | tojson }};
+new Chart(document.getElementById('historyChart'), {
+  type: 'line',
+  data: {
+    labels: stats.map(s => s.month).reverse(),
+    datasets: [
+      {
+        label: 'Donations Posted',
+        data: stats.map(s => s.donations).reverse(),
+        borderColor: '#27ae60',
+        backgroundColor: 'rgba(39,174,96,0.1)',
+        tension: 0.4, fill: true, pointRadius: 4
+      },
+      {
+        label: 'Meals Shared',
+        data: stats.map(s => s.meals).reverse(),
+        borderColor: '#2980b9',
+        backgroundColor: 'rgba(41,128,185,0.08)',
+        tension: 0.4, fill: true, pointRadius: 4
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } } }
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

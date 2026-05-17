@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}NGO Dashboard – FoodBridge{% endblock %}
+{% block content %}
+<div class="container-xl py-5">
+
+  <div class="dashboard-header mb-4">
+    <div>
+      <h2 class="dashboard-title">NGO Dashboard 🤝</h2>
+      <p class="text-muted">{{ session.organization or session.name }} – Manage your food pickups</p>
+    </div>
+    <a href="{{ url_for('ngo.available_donations') }}" class="btn btn-accent px-4">
+      <i class="bi bi-search me-2"></i>Find Food Donations
+    </a>
+  </div>
+
+  <!-- Stats -->
+  <div class="row g-4 mb-5">
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card blue"><div class="stat-card-icon"><i class="bi bi-truck"></i></div>
+        <div class="stat-card-num">{{ total_pickups }}</div><div class="stat-card-label">Total Pickups</div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card green"><div class="stat-card-icon"><i class="bi bi-people"></i></div>
+        <div class="stat-card-num">{{ meals_collected }}</div><div class="stat-card-label">Meals Collected</div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card orange"><div class="stat-card-icon"><i class="bi bi-clock-history"></i></div>
+        <div class="stat-card-num">{{ active_pickups }}</div><div class="stat-card-label">Active Pickups</div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="stat-card purple"><div class="stat-card-icon"><i class="bi bi-geo-alt"></i></div>
+        <div class="stat-card-num">{{ available_donations | length }}</div><div class="stat-card-label">Available Now</div></div>
+    </div>
+  </div>
+
+  {% if notifications %}
+  <div class="mb-4">
+    {% for n in notifications %}
+    <div class="alert alert-{{ n.type }} rounded-3 d-flex align-items-center gap-2">
+      <i class="bi bi-bell-fill"></i>
+      <div><strong>{{ n.title }}</strong> – {{ n.message }}</div>
+      <button class="btn-close ms-auto" onclick="readNotif({{ n.id }}, this.closest('.alert'))"></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="row g-4">
+    <!-- Leaflet Map -->
+    <div class="col-lg-7">
+      <div class="card fb-card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-map text-accent me-2"></i>Donations Near You</h5>
+          <small class="text-muted"><span style="color:#27ae60">●</span> Veg &nbsp; <span style="color:#e74c3c">●</span> Non-Veg &nbsp; <span style="color:#2980b9">●</span> You</small>
+        </div>
+        <div class="card-body p-0">
+          <div id="ngoMap" style="height:380px;border-radius:0 0 16px 16px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Pickups -->
+    <div class="col-lg-5">
+      <div class="card fb-card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-truck text-accent me-2"></i>My Active Pickups</h5>
+          <a href="{{ url_for('ngo.my_pickups') }}" class="btn btn-sm btn-outline-accent">All</a>
+        </div>
+        <div class="card-body">
+          {% if my_requests %}
+            {% for r in my_requests %}
+            <div class="pickup-card mb-3">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <strong>{{ r.food_name }}</strong>
+                  <span class="status-badge status-{{ r.status }} ms-2">{{ r.status }}</span>
+                </div>
+                <small class="text-muted">{{ r.quantity }} pax</small>
+              </div>
+              <p class="text-muted small mb-2">📍 {{ r.address | truncate(60) }}</p>
+              <div class="d-flex gap-2">
+                {% if r.status == 'accepted' %}
+                <a href="https://www.openstreetmap.org/directions?from=&to={{ r.latitude }},{{ r.longitude }}"
+                   target="_blank" class="btn btn-xs btn-outline-accent">
+                  <i class="bi bi-navigation me-1"></i>Directions
+                </a>
+                <form method="POST" action="{{ url_for('ngo.mark_collected', request_id=r.id) }}" class="d-inline">
+                  <input type="hidden" name="beneficiaries" value="{{ r.quantity }}"/>
+                  <button class="btn btn-xs btn-success"><i class="bi bi-check2 me-1"></i>Collected</button>
+                </form>
+                {% elif r.status == 'collected' %}
+                <form method="POST" action="{{ url_for('ngo.complete_pickup', request_id=r.id) }}">
+                  <button class="btn btn-xs btn-primary"><i class="bi bi-check2-all me-1"></i>Mark Complete</button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="empty-state text-center py-4">
+            <div class="empty-icon">🚛</div>
+            <p class="text-muted">No active pickups. <a href="{{ url_for('ngo.available_donations') }}">Find donations</a></p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Available Donations Table -->
+  <div class="card fb-card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-box-seam text-accent me-2"></i>Available Donations</h5>
+      <a href="{{ url_for('ngo.available_donations') }}" class="btn btn-sm btn-outline-accent">View All</a>
+    </div>
+    <div class="card-body p-0">
+      {% if available_donations %}
+      <div class="table-responsive">
+        <table class="table fb-table mb-0">
+          <thead><tr><th>Food</th><th>Type</th><th>Qty</th><th>Expires</th><th>Location</th><th>Action</th></tr></thead>
+          <tbody>
+            {% for d in available_donations[:8] %}
+            <tr>
+              <td><strong>{{ d.food_name }}</strong><br/><small class="text-muted">by {{ d.donor_org or d.donor_name }}</small></td>
+              <td><span class="badge {{ 'badge-veg' if d.food_type=='veg' else 'badge-nonveg' }}">{{ d.food_type }}</span></td>
+              <td>{{ d.quantity }}</td>
+              <td><small class="text-danger">{{ d.expiry_time.strftime('%d %b %H:%M') if d.expiry_time else 'N/A' }}</small></td>
+              <td><small>{{ d.address | truncate(40) }}</small></td>
+              <td>
+                <form method="POST" action="{{ url_for('ngo.accept_donation', donation_id=d.id) }}">
+                  <button class="btn btn-xs btn-accent"><i class="bi bi-check-circle me-1"></i>Accept</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state py-5 text-center"><div class="empty-icon">🍽️</div><p>No donations available right now.</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── NGO Map with Leaflet ────────────────────────────────────
+const ngoMap = L.map('ngoMap').setView([20.5937, 78.9629], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+}).addTo(ngoMap);
+
+function makeIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>`,
+    iconSize: [16, 16], iconAnchor: [8, 8]
+  });
+}
+
+// Show user's location
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    ngoMap.setView([lat, lng], 12);
+    L.marker([lat, lng], { icon: makeIcon('#2980b9') }).addTo(ngoMap)
+      .bindPopup('<strong>Your Location</strong>').openPopup();
+  });
+}
+
+// Load and display donations
+fetch('/api/donations/map').then(r => r.json()).then(data => {
+  if (!data.donations.length) return;
+  const bounds = [];
+  data.donations.forEach(d => {
+    const lat = parseFloat(d.latitude), lng = parseFloat(d.longitude);
+    const icon = makeIcon(d.food_type === 'veg' ? '#27ae60' : '#e74c3c');
+    L.marker([lat, lng], { icon }).addTo(ngoMap).bindPopup(`
+      <div style="min-width:200px;font-family:sans-serif">
+        <strong>${d.food_name}</strong><br>
+        <small>${d.food_type.toUpperCase()} · ${d.quantity} servings</small><br>
+        <small>${d.address}</small><br>
+        <small style="color:#e74c3c">⏰ ${new Date(d.expiry_time).toLocaleString()}</small><br>
+        <div style="margin-top:8px">
+          <a href="/ngo/accept/${d.id}"
+             style="background:#27ae60;color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none"
+             onclick="return confirm('Accept pickup for ${d.food_name}?')">Accept Pickup</a>
+        </div>
+      </div>`);
+    bounds.push([lat, lng]);
+  });
+});
+</script>
+{% endblock %}
