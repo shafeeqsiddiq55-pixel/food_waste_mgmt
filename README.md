@@ -177,7 +177,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment instructions.
 
 ## 📧 Contact & Support
 
-For support, email: support@foodwaste.com
+For support, email: shafeeqsiddiq55@gmail.com
 
 ## 📄 License
 
